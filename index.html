@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Brittany's Media Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html,body{background:#0d0d0d;min-height:100vh;font-family:'Playfair Display',Georgia,serif;color:#e8e0d5;}
+input,select,textarea{font-family:'Playfair Display',Georgia,serif;color:#e8e0d5;}
+input:focus,select:focus,textarea:focus{outline:2px solid #c8a84b;}
+select option{background:#1a1610;color:#e8e0d5;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#2e2416;border-radius:4px;}
+.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:999;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;align-items:flex-start;justify-content:center;}
+.mi{background:#1a1610;border:1px solid #2e2416;border-radius:12px;padding:18px;width:100%;max-width:480px;margin:auto;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+var React=window.React, ReactDOM=window.ReactDOM;
+var useState=React.useState, useEffect=React.useEffect;
+
+// ──constants ──────────────────────────────────────────────────────────────
+var DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+var STREAM_LIST=["Netflix","Disney+","Paramount+","Prime Video","Hulu","Apple TV+","HBO Max","Peacock","YouTube","DirectTV","PBS","Zeus","Starz","Showtime","Theatre","Other"];
+var GENRES=["Action","Animation","Comedy","Crime","Dark Comedy","Documentary","Drama","Fantasy","Horror","Legal Drama","Medical Drama","Mystery","Reality","Romance","Sci-Fi","Sports Drama","Thriller","Other"];
+var TABS=["Home","Shows","Movies","Watch List","YouTube","Friends"];
+var COMING={January:["Wonder Man","The Pitt","Tell Me Lies","School Spirits","Bridgerton"],February:["Paradise","Matlock","Bridgerton"],March:["Y: Marshall's","Daredevil"],April:["Your Friends and Neighbors","The Boys"]};
+
+// ──palette ────────────────────────────────────────────────────────────────
+var C={
+  bg:"#0d0d0d", card:"#1a1610", border:"#2e2416", tag:"#0f0d0a",
+  light:"#e8e0d5",  // main text
+  tan:"#c4a882",    // secondary / streaming
+  muted:"#6b5f52",  // synopses, notes
+  sub:"#a89880",    // labels, dates
+  accent:"#8c7355", // format tags, buttons
+  gold:"#c8a84b",   // stars, highlights
+  green:"#7a9e7e",  // watched / available
+  red:"#9e7a7a",    // errors / DNF
+  blue:"#2471A3", purple:"#6C3483"
+};
+
+// ──seed data ──────────────────────────────────────────────────────────────
+var SEED_WEEK={Sunday:[{id:1,title:"Baddies",streaming:"Zeus",time:""},{id:2,title:"Landman",streaming:"Paramount+",time:""},{id:3,title:"The Chair Company",streaming:"",time:""},{id:4,title:"Knight of Seven Kingdoms",streaming:"HBO Max",time:""}],Monday:[],Tuesday:[{id:5,title:"Hijack",streaming:"Apple TV+",time:""},{id:6,title:"Wonder Man",streaming:"Disney+",time:""}],Wednesday:[{id:7,title:"Percy Jackson",streaming:"Disney+",time:""},{id:8,title:"School Spirits",streaming:"Paramount+",time:""},{id:9,title:"Cross",streaming:"Prime Video",time:""}],Thursday:[{id:10,title:"The Pitt",streaming:"HBO Max",time:""}],Friday:[{id:11,title:"Friends and Neighbors",streaming:"Apple TV+",time:""}],Saturday:[]};
+var SEED_SHOWS=[
+  {id:101,title:"The Bear",genre:"Drama",streaming:"Hulu",status:"Watching",rating:5,synopsis:"A fine-dining chef returns to run his family's sandwich shop.",seasons:"3",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:102,title:"House of the Dragon",genre:"Fantasy",streaming:"HBO Max",status:"Watching",rating:5,synopsis:"The Targaryen civil war — Game of Thrones prequel.",seasons:"2",day:"Sunday",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:103,title:"The Last of Us",genre:"Sci-Fi",streaming:"HBO Max",status:"Watching",rating:5,synopsis:"A smuggler and a girl traverse a post-apocalyptic America.",seasons:"2",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:107,title:"Adolescence",genre:"Drama",streaming:"Netflix",status:"Watching",rating:5,synopsis:"A gripping look at teen violence and its aftermath.",seasons:"1",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:110,title:"Hijack",genre:"Thriller",streaming:"Apple TV+",status:"Watching",rating:4,synopsis:"Real-time thriller following a hijacked plane over 7 hours.",seasons:"1",day:"Tuesday",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:116,title:"Tell Me Lies",genre:"Thriller",streaming:"Hulu",status:"Watching",rating:4,synopsis:"A dark obsessive relationship unfolds in college.",seasons:"2",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:301,title:"Search Party",genre:"Dark Comedy",streaming:"",status:"Recommend",rating:5,synopsis:"Fav dark comedy — millennials wrapped in a missing person case.",seasons:"4",day:"",notes:"Fav dark comedy",startedDate:"",finishedDate:"",recBy:""},
+  {id:302,title:"FROM",genre:"Horror",streaming:"",status:"Recommend",rating:5,synopsis:"Fav horror mystery — a town traps everyone who arrives.",seasons:"3",day:"",notes:"Fav horror mystery",startedDate:"",finishedDate:"",recBy:""},
+  {id:303,title:"Succession",genre:"Dark Comedy",streaming:"HBO Max",status:"Recommend",rating:5,synopsis:"A media dynasty's dysfunctional family battles for control.",seasons:"4",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:304,title:"White Lotus",genre:"Drama",streaming:"HBO Max",status:"Recommend",rating:5,synopsis:"Anthology at a luxury resort — satirical and addictive.",seasons:"3",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:305,title:"Ozark",genre:"Crime",streaming:"Netflix",status:"Recommend",rating:5,synopsis:"A financial advisor launders money for a Mexican cartel.",seasons:"4",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:316,title:"Silo",genre:"Sci-Fi",streaming:"Apple TV+",status:"Recommend",rating:5,synopsis:"The last 10,000 people on Earth live underground.",seasons:"2",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+  {id:317,title:"The Boys",genre:"Action",streaming:"Prime Video",status:"Recommend",rating:5,synopsis:"Vigilantes take on corrupt superheroes.",seasons:"4",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""},
+];
+var SEED_MOVIES=[
+  {id:401,title:"The Roses",genre:"Romance",streaming:"",status:"Want to Watch",rating:0,synopsis:"",year:"2025",notes:"",recBy:"",releaseDate:"",venue:"Theatre"},
+  {id:410,title:"Honey and Spice",genre:"Romance",streaming:"",status:"Want to Watch",rating:0,synopsis:"Based on the novel by Bolu Babalola.",year:"2026",notes:"",recBy:"",releaseDate:"2026-06-01",venue:"Theatre"},
+  {id:422,title:"Dune: Part Three",genre:"Sci-Fi",streaming:"",status:"Want to Watch",rating:0,synopsis:"",year:"2026",notes:"",recBy:"",releaseDate:"2026-11-01",venue:"Theatre"},
+  {id:423,title:"Project Hail Mary",genre:"Sci-Fi",streaming:"Prime Video",status:"Want to Watch",rating:0,synopsis:"Based on Andy Weir's novel.",year:"2026",notes:"",recBy:"",releaseDate:"2026-03-20",venue:"Prime Video"},
+  {id:424,title:"The Devil Wears Prada 2",genre:"Comedy",streaming:"",status:"Want to Watch",rating:0,synopsis:"",year:"2026",notes:"",recBy:"",releaseDate:"2026-05-01",venue:"Theatre"},
+  {id:427,title:"Spider-Man: Brand New Day",genre:"Action",streaming:"",status:"Want to Watch",rating:0,synopsis:"",year:"2026",notes:"",recBy:"",releaseDate:"2026-07-25",venue:"Theatre"},
+  {id:430,title:"Avengers: Doomsday",genre:"Action",streaming:"",status:"Want to Watch",rating:0,synopsis:"",year:"2026",notes:"",recBy:"",releaseDate:"2026-05-01",venue:"Theatre"},
+];
+
+// ──factories ──────────────────────────────────────────────────────────────
+function esh(){return{id:Date.now(),title:"",genre:"",streaming:"",status:"Watching",rating:0,synopsis:"",seasons:"",day:"",notes:"",startedDate:"",finishedDate:"",recBy:""};}
+function emv(){return{id:Date.now(),title:"",genre:"",streaming:"",status:"Want to Watch",rating:0,synopsis:"",year:"",notes:"",recBy:"",releaseDate:"",venue:"Theatre"};}
+function eyt(){return{id:Date.now(),title:"",url:"",channel:"",category:"",notes:"",watched:false};}
+
+// ──helpers ────────────────────────────────────────────────────────────────
+function usePersist(key,init){
+  var st=useState(function(){try{var s=localStorage.getItem("bmt_"+key);return s?JSON.parse(s):init;}catch(e){return init;}});
+  var val=st[0],setVal=st[1];
+  useEffect(function(){try{localStorage.setItem("bmt_"+key,JSON.stringify(val));}catch(e){};},[key,val]);
+  return[val,setVal];
+}
+function isReleased(d){return d&&new Date(d)<=new Date();}
+function statusColor(st){
+  if(st==="Watched"||st==="Seen")return{bg:"#0f1a10",tx:C.green};
+  if(st==="Watching")return{bg:"#0a1220",tx:"#7aaddd"};
+  if(st==="Recommend")return{bg:"#1e1a00",tx:C.gold};
+  if(st==="Want to Watch"||st==="Watch Next")return{bg:"#1a0f0f",tx:C.red};
+  return{bg:C.tag,tx:C.sub};
+}
+
+// ──style helpers ──────────────────────────────────────────────────────────
+var SS={
+  app:{background:C.bg,minHeight:"100vh",color:C.light,paddingBottom:60,display:"flex",flexDirection:"column",alignItems:"center"},
+  hdr:{background:C.card,borderBottom:"1px solid "+C.border,padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"center",width:"100%",boxSizing:"border-box"},
+  tabs:{display:"flex",gap:3,padding:"8px 10px",background:C.card,borderBottom:"1px solid "+C.border,overflowX:"auto",width:"100%",boxSizing:"border-box",justifyContent:"center"},
+  sec:{padding:"12px 14px",width:"100%",maxWidth:680,boxSizing:"border-box"},
+  card:{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:"11px 13px",marginBottom:7},
+  lbl:{fontSize:11,color:C.sub,marginBottom:3,display:"block",fontWeight:500,textTransform:"uppercase",letterSpacing:0.8},
+  inp:{width:"100%",background:C.tag,border:"1px solid "+C.border,borderRadius:7,padding:"9px 11px",color:C.light,fontSize:14,boxSizing:"border-box"},
+  sel:{width:"100%",background:C.tag,border:"1px solid "+C.border,borderRadius:7,padding:"9px 11px",color:C.light,fontSize:14,boxSizing:"border-box"},
+  ta:{width:"100%",background:C.tag,border:"1px solid "+C.border,borderRadius:7,padding:"9px 11px",color:C.light,fontSize:14,boxSizing:"border-box",resize:"vertical",minHeight:64},
+  g2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},
+  g3:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8},
+  g4:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8},
+  stat:{background:C.tag,border:"1px solid "+C.border,borderRadius:9,padding:"9px 8px",textAlign:"center",cursor:"pointer"},
+  sn:{fontSize:20,fontWeight:600,color:C.gold,margin:0},
+  sl:{fontSize:10,color:C.sub,margin:0,letterSpacing:0.5},
+};
+
+function BN(v){
+  var bg=v==="danger"?C.red:v==="green"?C.green:v==="blue"?C.blue:v==="purple"?C.purple:v==="gold"?C.gold:v==="muted"?C.tag:C.accent;
+  var co=v==="muted"?C.sub:C.light;
+  return{padding:"8px 15px",borderRadius:7,fontSize:13,fontWeight:500,cursor:"pointer",border:"1px solid "+C.border,background:bg,color:co};
+}
+function tabStyle(a){return{padding:"6px 11px",borderRadius:20,fontSize:12,fontWeight:500,cursor:"pointer",border:"1px solid "+(a?C.gold:C.border),background:a?"#1e1a10":C.tag,color:a?C.gold:C.sub,whiteSpace:"nowrap"};}
+function chipStyle(bg,tx){return{display:"inline-block",padding:"2px 8px",borderRadius:9,fontSize:11,fontWeight:500,background:bg||C.tag,color:tx||C.gold,marginRight:3,marginBottom:2};}
+
+// ──atoms ──────────────────────────────────────────────────────────────────
+function Stars(p){
+  return React.createElement("div",{style:{display:"flex",gap:3}},
+    [1,2,3,4,5].map(function(r){
+      return React.createElement("span",{key:r,onClick:function(){p.set&&p.set(r);},style:{fontSize:p.big?24:18,cursor:p.set?"pointer":"default",color:r<=(p.val||0)?C.gold:"#3a3028"}},"★");
+    })
+  );
+}
+function Chip(p){return React.createElement("span",{style:chipStyle(p.bg,p.tx)},p.children);}
+function Empty(p){return React.createElement("div",{style:{textAlign:"center",color:C.muted,fontSize:13,padding:"24px 16px"}},p.label);}
+function SBar(p){
+  return React.createElement("div",{style:{display:"flex",gap:6,marginBottom:8}},
+    React.createElement("input",{style:{...SS.inp,flex:1},placeholder:"Search...",value:p.v,onChange:function(e){p.set(e.target.value);}}),
+    p.btnEl||null
+  );
+}
+function SortBar(p){
+  return React.createElement("select",{style:{...SS.sel,marginBottom:8,fontSize:12},value:p.sortBy,onChange:function(e){p.setSortBy(e.target.value);}},
+    React.createElement("option",{value:"default"},"Sort: Default"),
+    p.options.map(function(o){return React.createElement("option",{key:o.v,value:o.v},o.l);})
+  );
+}
+function StreamSel(p){
+  return React.createElement("select",{style:SS.sel,value:p.value,onChange:function(e){p.onChange(e.target.value);}},
+    React.createElement("option",{value:""},"— Select —"),
+    STREAM_LIST.map(function(s){return React.createElement("option",{key:s,value:s},s);})
+  );
+}
+function ConfirmModal(p){
+  return React.createElement("div",{className:"mo",onClick:p.onNo},
+    React.createElement("div",{className:"mi",onClick:function(e){e.stopPropagation();},style:{maxWidth:320,textAlign:"center",marginTop:60}},
+      React.createElement("p",{style:{fontSize:15,color:C.light,marginBottom:6}},"Are you sure?"),
+      React.createElement("p",{style:{fontSize:13,color:C.muted,marginBottom:18}},p.msg),
+      React.createElement("div",{style:{display:"flex",gap:10,justifyContent:"center"}},
+        React.createElement("button",{style:BN("muted"),onClick:p.onNo},"Cancel"),
+        React.createElement("button",{style:BN("danger"),onClick:p.onYes},"Delete")
+      )
+    )
+  );
+}
+
+// ──Lock Screen ────────────────────────────────────────────────────────────
+function LockScreen(p){
+  var pwSt=useState(""); var pw=pwSt[0]; var setPw=pwSt[1];
+  var errSt=useState(false); var err=errSt[0]; var setErr=errSt[1];
+  var shakeSt=useState(false); var shake=shakeSt[0]; var setShake=shakeSt[1];
+  function attempt(){
+    if(pw==="godlove"){p.onUnlock();}
+    else{setErr(true);setPw("");setShake(true);setTimeout(function(){setErr(false);setShake(false);},1500);}
+  }
+  return React.createElement("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:0,background:"#0d0d0d",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}},
+    React.createElement("div",{style:{textAlign:"center",padding:"44px 36px",maxWidth:420,width:"90%",background:"#1a1610",border:"1px solid #2e2416",borderRadius:24,animation:shake?"shake 0.4s ease":"none"}},
+      React.createElement("div",{style:{fontSize:58,marginBottom:20,lineHeight:1}},"🎬"),
+      React.createElement("p",{style:{fontSize:28,fontWeight:700,color:"#e8e0d5",marginBottom:8,fontFamily:"'Playfair Display',Georgia,serif"}},"Brittany's Media Tracker"),
+      React.createElement("p",{style:{fontSize:15,color:"#a89880",marginBottom:36,fontFamily:"'Playfair Display',Georgia,serif"}},"Enter your password"),
+      React.createElement("input",{
+        style:{width:"100%",background:"#0f0d0a",border:"1px solid "+(err?"#9e7a7a":"#2e2416"),borderRadius:14,padding:"16px 18px",color:"#e8e0d5",fontSize:16,boxSizing:"border-box",textAlign:"center",letterSpacing:4,marginBottom:err?8:16,outline:"none",fontFamily:"'Playfair Display',Georgia,serif"},
+        type:"password",placeholder:"Password",value:pw,
+        onChange:function(e){setPw(e.target.value);},
+        onKeyDown:function(e){if(e.key==="Enter")attempt();},
+        autoFocus:true
+      }),
+      err?React.createElement("p",{style:{fontSize:12,color:"#9e7a7a",marginBottom:10}},"Incorrect — try again"):null,
+      React.createElement("button",{
+        style:{width:"100%",background:"#9A7A56",border:"none",borderRadius:14,padding:"16px",color:"#e8e0d5",fontSize:17,fontWeight:600,cursor:"pointer",fontFamily:"'Playfair Display',Georgia,serif"},
+        onClick:attempt
+      },"Unlock")
+    )
+  );
+}
+
+// ──App ────────────────────────────────────────────────────────────────────
+function App(){
+  var lockSt=useState(false); var unlocked=lockSt[0]; var setUnlocked=lockSt[1];
+  var tabSt=useState("Home"); var activeTab=tabSt[0]; var setActiveTab=tabSt[1];
+  var showsSt=usePersist("shows3",SEED_SHOWS); var shows=showsSt[0]; var setShows=showsSt[1];
+  var moviesSt=usePersist("movies3",SEED_MOVIES); var movies=moviesSt[0]; var setMovies=moviesSt[1];
+  var ytSt=usePersist("youtube3",[]); var youtube=ytSt[0]; var setYoutube=ytSt[1];
+  var weekSt=usePersist("week3",SEED_WEEK); var week=weekSt[0]; var setWeek=weekSt[1];
+  var modalSt=useState(null); var modal=modalSt[0]; var setModal=modalSt[1];
+  var editSt=useState(null); var editItem=editSt[0]; var setEditItem=editSt[1];
+  var confirmSt=useState(null); var confirmDel=confirmSt[0]; var setConfirmDel=confirmSt[1];
+  var searchSt=useState(""); var search=searchSt[0]; var setSearch=searchSt[1];
+  var filtSt=useState("All"); var filt=filtSt[0]; var setFilt=filtSt[1];
+  var sortSt=useState("default"); var sortBy=sortSt[0]; var setSortBy=sortSt[1];
+  var expModalSt=useState(false); var exportModal=expModalSt[0]; var setExportModal=expModalSt[1];
+  var expTxtSt=useState(""); var exportText=expTxtSt[0]; var setExportText=expTxtSt[1];
+  var expLoadSt=useState(false); var exportLoading=expLoadSt[0]; var setExportLoading=expLoadSt[1];
+  var impModalSt=useState(false); var importModal=impModalSt[0]; var setImportModal=impModalSt[1];
+
+  useEffect(function(){
+    setMovies(function(arr){return arr.map(function(m){
+      if(m.status==="Want to Watch"&&m.releaseDate&&isReleased(m.releaseDate)&&m.venue!=="Theatre")return{...m,status:"Watch Next"};
+      return m;
+    });});
+  },[]);
+
+  if(!unlocked)return React.createElement(LockScreen,{onUnlock:function(){setUnlocked(true);}});
+
+  function getSet(t){return t==="shows"?setShows:t==="movies"?setMovies:setYoutube;}
+  function openAdd(type){var blank=type==="shows"?esh():type==="movies"?emv():eyt();setEditItem({...blank,_type:type,_new:true});setModal("edit");}
+  function openEdit(type,item){setEditItem({...item,_type:type,_new:false});setModal("edit");}
+  function saveItem(){
+    var _type=editItem._type,_new=editItem._new;
+    var item={...editItem};delete item._type;delete item._new;
+    getSet(_type)(function(arr){return _new?[...arr,{...item,id:Date.now()}]:arr.map(function(x){return x.id===item.id?item:x;});});
+    setModal(null);setEditItem(null);
+  }
+  function askDelete(type,id,title){setConfirmDel({type,id,title});}
+  function doDelete(){if(!confirmDel)return;getSet(confirmDel.type)(function(arr){return arr.filter(function(x){return x.id!==confirmDel.id;});});setConfirmDel(null);}
+
+  function applySort(arr){
+    if(sortBy==="rating")return[...arr].sort(function(a,b){return b.rating-a.rating;});
+    if(sortBy==="title")return[...arr].sort(function(a,b){return a.title.localeCompare(b.title);});
+    if(sortBy==="newest")return[...arr].sort(function(a,b){return(b.year||"").localeCompare(a.year||"");});
+    return arr;
+  }
+  function fi(arr){
+    var r=arr;
+    if(search)r=r.filter(function(x){return JSON.stringify(x).toLowerCase().includes(search.toLowerCase());});
+    if(filt!=="All")r=r.filter(function(x){return x.status===filt;});
+    return applySort(r);
+  }
+
+  var todayIdx=new Date().getDay();
+  var todayName=DAYS[todayIdx===0?6:todayIdx-1];
+  var tonightShows=week[todayName]||[];
+  var watching=shows.filter(function(s){return s.status==="Watching";});
+  var queued=movies.filter(function(m){return m.status==="Want to Watch"||m.status==="Watch Next";});
+
+  var counts={"Home":"","Shows":shows.length,"Movies":movies.length,"Watch List":shows.filter(function(s){return s.status==="Recommend";}).length+queued.length,"YouTube":youtube.length,"Friends":[...shows,...movies].filter(function(x){return x.recBy;}).length};
+
+  function changeTab(t){setActiveTab(t);setSearch("");setFilt("All");setSortBy("default");}
+
+  async function generateExport(){
+    setExportLoading(true);setExportText("");setExportModal(true);
+    var topS=shows.filter(function(s){return s.status==="Recommend";}).slice(0,8).map(function(s){return s.title;}).join(", ");
+    var topM=movies.filter(function(m){return m.status==="Want to Watch";}).slice(0,6).map(function(m){return m.title;}).join(", ");
+    var prompt="Create a fun shareable Ultimate Watch List for Brittany. She recommends: "+topS+". Excited to watch: "+topM+". Enthusiastic listicle style, emojis, 2-3 short paragraphs.";
+    try{
+      var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,messages:[{role:"user",content:prompt}]})});
+      var data=await res.json();
+      setExportText(data.content&&data.content[0]?data.content[0].text:"");
+    }catch(e){setExportText("Couldn't connect — try again!");}
+    setExportLoading(false);
+  }
+
+  return React.createElement("div",{style:SS.app},
+    // header
+    React.createElement("div",{style:SS.hdr},
+      React.createElement("div",{style:{textAlign:"center"}},
+        React.createElement("p",{style:{fontSize:20,fontWeight:700,color:C.light,margin:0}},"🎬 Brittany's Media Tracker"),
+        React.createElement("p",{style:{fontSize:11,color:C.sub,margin:"2px 0 8px",letterSpacing:1,textTransform:"uppercase"}},"Shows · Movies · YouTube"),
+        React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"center"}},
+          React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"5px 10px"},onClick:function(){setImportModal(true);}},"⬆ Import"),
+          React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"5px 10px"},onClick:function(){setExportText("");setExportModal(true);}},"🎬 Export")
+        )
+      )
+    ),
+    // tabs
+    React.createElement("div",{style:SS.tabs},
+      TABS.map(function(t){
+        var n=counts[t];
+        return React.createElement("button",{key:t,style:tabStyle(activeTab===t),onClick:function(){changeTab(t);}},
+          t,
+          n>0?React.createElement("span",{style:{marginLeft:3,fontSize:10,background:activeTab===t?"rgba(200,168,75,0.2)":C.border,color:activeTab===t?C.gold:C.sub,borderRadius:8,padding:"1px 5px"}},n):null
+        );
+      })
+    ),
+    // pages
+    activeTab==="Home"       &&React.createElement(HomeTab,{shows:shows,movies:movies,youtube:youtube,tonightShows:tonightShows,todayName:todayName,setTab:setActiveTab,openAdd:openAdd,generateExport:generateExport,watching:watching,queued:queued}),
+    activeTab==="Shows"      &&React.createElement(ShowsTab,{shows:shows,setShows:setShows,fi:fi,search:search,setSearch:setSearch,filt:filt,setFilt:setFilt,sortBy:sortBy,setSortBy:setSortBy,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete,week:week,setWeek:setWeek}),
+    activeTab==="Movies"     &&React.createElement(MoviesTab,{movies:movies,setMovies:setMovies,fi:fi,search:search,setSearch:setSearch,filt:filt,setFilt:setFilt,sortBy:sortBy,setSortBy:setSortBy,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete}),
+    activeTab==="Watch List" &&React.createElement(WatchListTab,{shows:shows,setShows:setShows,movies:movies,setMovies:setMovies,openEdit:openEdit}),
+    activeTab==="YouTube"    &&React.createElement(YouTubeTab,{youtube:youtube,setYoutube:setYoutube,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete,search:search,setSearch:setSearch}),
+    activeTab==="Friends"    &&React.createElement(FriendsTab,{shows:shows,movies:movies}),
+    modal==="edit"&&editItem&&React.createElement(EditModal,{item:editItem,setItem:setEditItem,onSave:saveItem,onClose:function(){setModal(null);setEditItem(null);}}),
+    confirmDel&&React.createElement(ConfirmModal,{msg:'Delete "'+confirmDel.title+'"?',onYes:doDelete,onNo:function(){setConfirmDel(null);}}),
+    exportModal&&React.createElement("div",{className:"mo",onClick:function(){setExportModal(false);}},
+      React.createElement("div",{className:"mi",onClick:function(e){e.stopPropagation();},style:{maxWidth:500}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
+          React.createElement("span",{style:{fontSize:15,fontWeight:600,color:C.gold}},"🎬 Share Your Watch List"),
+          React.createElement("button",{style:{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20},onClick:function(){setExportModal(false);}},"✕")
+        ),
+        React.createElement("button",{style:{...BN(),width:"100%",fontSize:13,marginBottom:12},onClick:generateExport},"📺 Generate Watch List Summary"),
+        exportLoading&&React.createElement("div",{style:{textAlign:"center",color:C.muted,padding:"20px 0"}},"🎬 Crafting your summary…"),
+        exportText&&!exportLoading&&React.createElement("div",null,
+          React.createElement("div",{style:{background:C.tag,borderRadius:8,padding:"12px",fontSize:13,color:C.light,lineHeight:1.7,marginBottom:10,whiteSpace:"pre-wrap"}},exportText),
+          React.createElement("button",{style:{...BN("green"),width:"100%"},onClick:function(){try{navigator.clipboard.writeText(exportText);}catch(e){}alert("Copied!");}},"Copy to Clipboard")
+        )
+      )
+    ),
+    importModal&&React.createElement(ImportModal,{shows:shows,setShows:setShows,movies:movies,setMovies:setMovies,onClose:function(){setImportModal(false);}})
+  );
+}
+
+// ──Home ───────────────────────────────────────────────────────────────────
+function HomeTab(p){
+  var shows=p.shows,movies=p.movies,youtube=p.youtube,tonightShows=p.tonightShows,todayName=p.todayName,setTab=p.setTab,openAdd=p.openAdd,generateExport=p.generateExport,watching=p.watching,queued=p.queued;
+  var moodValSt=useState(""); var moodVal=moodValSt[0]; var setMoodVal=moodValSt[1];
+  var moodRecSt=useState(""); var moodRec=moodRecSt[0]; var setMoodRec=moodRecSt[1];
+  var moodLoadSt=useState(false); var moodLoad=moodLoadSt[0]; var setMoodLoad=moodLoadSt[1];
+  var MOODS=["Cozy & light","Thrilling & dark","Emotional & deep","Funny & easy","Mind-bending","Action-packed"];
+  var MOOD_MAP={"Cozy & light":["cozy","light","fun","warm","feel-good","comedy","slice"],"Thrilling & dark":["thriller","dark","suspense","crime","mystery","horror","intense"],"Emotional & deep":["drama","emotional","deep","moving","character","relationship"],"Funny & easy":["comedy","funny","easy","lighthearted","sitcom","animated"],"Mind-bending":["sci-fi","twist","mystery","psychological","complex","mind"],"Action-packed":["action","adventure","superhero","war","chase","fight"]};
+  function getMoodRec(m){
+    setMoodVal(m);setMoodLoad(true);setMoodRec("");
+    setTimeout(function(){
+      var keywords=MOOD_MAP[m]||[];
+      var all=watching.concat(queued);
+      var scored=all.map(function(x){var txt=(x.title+" "+(x.genre||"")+" "+(x.synopsis||"")).toLowerCase();var sc=keywords.reduce(function(a,k){return a+(txt.includes(k)?1:0);},0);return{item:x,score:sc};}).filter(function(x){return x.score>0;}).sort(function(a,b){return b.score-a.score;});
+      if(!scored.length){var picks=all.slice(0,2);setMoodRec(picks.length?"Try "+picks.map(function(x){return x.title;}).join(" or ")+" for a "+m.toLowerCase()+" night!":"Add some shows and movies to get recommendations!");return;}
+      var top=scored.slice(0,2);var names=top.map(function(x){return x.item.title;}).join(" or ");var exp=top[0].item.synopsis||"";
+      setMoodRec("For your "+m.toLowerCase()+" mood — try "+names+"."+(exp?" "+exp.slice(0,80)+(exp.length>80?"…":""):""));
+      setMoodLoad(false);
+    },600);
+  }
+  var genreCounts={};shows.concat(movies).filter(function(x){return x.status==="Watched"||x.status==="Seen";}).forEach(function(x){if(x.genre)genreCounts[x.genre]=(genreCounts[x.genre]||0)+1;});
+  var topGenres=Object.entries(genreCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+  var totalG=Object.values(genreCounts).reduce(function(a,b){return a+b;},0)||1;
+  var watchNext=movies.filter(function(m){return m.status==="Watch Next";});
+  function infoCard(borderColor,label,children){return React.createElement("div",{style:{...SS.card,borderLeft:"3px solid "+borderColor,marginBottom:8}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:borderColor,marginBottom:5}},label),children);}
+  return React.createElement("div",{style:SS.sec},
+    infoCard(C.gold,"On Tonight · "+todayName,
+      tonightShows.length>0
+        ?React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},tonightShows.map(function(sh){return React.createElement("div",{key:sh.id,style:{background:C.tag,borderRadius:7,padding:"4px 9px"}},React.createElement("div",{style:{fontSize:12,color:C.light}},sh.title),sh.streaming?React.createElement("div",{style:{fontSize:10,color:C.sub}},sh.streaming):null);}))
+        :React.createElement("div",{style:{fontSize:12,color:C.muted}},"Nothing scheduled — free night!")
+    ),
+    watching.length>0&&infoCard("#7aaddd","▶ Currently Watching",
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},
+        watching.slice(0,5).map(function(sh){return React.createElement("div",{key:sh.id,style:{background:C.tag,borderRadius:7,padding:"4px 9px"}},React.createElement("div",{style:{fontSize:12,color:C.light}},sh.title),sh.streaming?React.createElement("div",{style:{fontSize:10,color:C.sub}},sh.streaming):null);}),
+        watching.length>5?React.createElement("div",{style:{background:C.tag,borderRadius:7,padding:"4px 9px",fontSize:12,color:C.muted}},"+"+( watching.length-5)+" more"):null
+      )
+    ),
+    watchNext.length>0&&infoCard(C.green,"🎬 Now Streaming — Watch Next",
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},watchNext.map(function(m){return React.createElement("div",{key:m.id,style:{background:C.tag,borderRadius:7,padding:"4px 9px"}},React.createElement("div",{style:{fontSize:12,color:C.light}},m.title),m.venue?React.createElement("div",{style:{fontSize:10,color:C.sub}},m.venue):null);}))
+    ),
+    React.createElement("div",{style:{...SS.g4,marginBottom:8}},
+      React.createElement("div",{style:SS.stat,onClick:function(){setTab("Shows");}},React.createElement("p",{style:SS.sn},watching.length),React.createElement("p",{style:SS.sl},"Watching")),
+      React.createElement("div",{style:SS.stat,onClick:function(){setTab("Shows");}},React.createElement("p",{style:SS.sn},shows.filter(function(s){return s.status==="Watched";}).length),React.createElement("p",{style:SS.sl},"Watched")),
+      React.createElement("div",{style:SS.stat,onClick:function(){setTab("Movies");}},React.createElement("p",{style:SS.sn},queued.length),React.createElement("p",{style:SS.sl},"Queued")),
+      React.createElement("div",{style:SS.stat,onClick:function(){setTab("YouTube");}},React.createElement("p",{style:SS.sn},youtube.filter(function(y){return!y.watched;}).length),React.createElement("p",{style:SS.sl},"YT Queue"))
+    ),
+    React.createElement("div",{style:{...SS.card,marginBottom:8}},
+      React.createElement("div",{style:{fontSize:12,fontWeight:600,color:C.gold,marginBottom:7}},"🎬 What Should I Watch Tonight?"),
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:4,marginBottom:7}},
+        MOODS.map(function(m){return React.createElement("button",{key:m,style:{...BN(moodVal===m?"gold":"muted"),padding:"5px 10px",fontSize:11,opacity:moodLoad?0.5:1},onClick:function(){getMoodRec(m);},disabled:moodLoad},m);})
+      ),
+      moodLoad&&React.createElement("div",{style:{fontSize:12,color:C.muted}},"Finding your match…"),
+      moodRec&&!moodLoad&&React.createElement("div",{style:{background:C.tag,borderRadius:8,padding:"10px 12px",fontSize:13,color:C.light,lineHeight:1.6}},React.createElement("span",{style:{color:C.gold,fontWeight:600}},'"'+moodVal+'" — '),moodRec)
+    ),
+    topGenres.length>0&&React.createElement("div",{style:{...SS.card,marginBottom:8}},
+      React.createElement("div",{style:{fontSize:12,fontWeight:600,color:C.gold,marginBottom:7}},"Genre Breakdown"),
+      topGenres.map(function(item){var g=item[0],n=item[1];return React.createElement("div",{key:g,style:{marginBottom:5}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:2}},React.createElement("span",{style:{color:C.light}},g),React.createElement("span",{style:{color:C.sub}},n)),React.createElement("div",{style:{background:C.tag,borderRadius:4,height:5}},React.createElement("div",{style:{height:"100%",width:Math.round((n/totalG)*100)+"%",background:C.accent,borderRadius:4}})));})
+    ),
+    React.createElement("div",{style:{...SS.card,marginBottom:8}},
+      React.createElement("div",{style:{fontSize:12,fontWeight:600,color:C.gold,marginBottom:7}},"🎬 Share & Export"),
+      React.createElement("button",{style:{...BN(),width:"100%",fontSize:12},onClick:generateExport},"📺 Generate Watch List Summary")
+    ),
+    React.createElement("div",{style:SS.card},
+      React.createElement("div",{style:{fontSize:12,fontWeight:600,color:C.gold,marginBottom:7}},"🎬 Quick Add"),
+      React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap"}},
+        [["shows","Show"],["movies","Movie"],["youtube","Video"]].map(function(item){return React.createElement("button",{key:item[0],style:{...BN("muted"),fontSize:12,padding:"5px 11px"},onClick:function(){openAdd(item[0]);}},"+ "+item[1]);})
+      )
+    )
+  );
+}
+
+// ──Shows ──────────────────────────────────────────────────────────────────
+function ShowsTab(p){
+  var shows=p.shows,setShows=p.setShows,fi=p.fi,search=p.search,setSearch=p.setSearch,filt=p.filt,setFilt=p.setFilt,sortBy=p.sortBy,setSortBy=p.setSortBy,openAdd=p.openAdd,openEdit=p.openEdit,askDelete=p.askDelete,week=p.week,setWeek=p.setWeek;
+  var SSTATUS=["All","Watching","Watched","Recommend","Want to Watch"];
+  var filtered=fi(shows);
+  function move(id,st){setShows(function(arr){return arr.map(function(s){return s.id===id?{...s,status:st}:s;});});}
+  return React.createElement("div",{style:SS.sec},
+    React.createElement(SBar,{v:search,set:setSearch,btnEl:React.createElement("button",{style:BN(),onClick:function(){openAdd("shows");}},"+Show")}),
+    React.createElement(SortBar,{sortBy:sortBy,setSortBy:setSortBy,options:[{v:"rating",l:"Sort: Rating"},{v:"title",l:"Sort: A→Z"}]}),
+    React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}},SSTATUS.map(function(st){return React.createElement("button",{key:st,style:{...BN(filt===st?"gold":"muted"),padding:"5px 10px",fontSize:11},onClick:function(){setFilt(st);}},st);})),
+    React.createElement("div",{style:{marginBottom:14}},
+      React.createElement("div",{style:{fontSize:12,fontWeight:600,color:C.gold,marginBottom:7}},"Weekly Air Schedule"),
+      React.createElement(WeekGrid,{week:week,setWeek:setWeek})
+    ),
+    React.createElement("div",{style:{marginBottom:14}},
+      React.createElement("div",{style:{fontSize:11,fontWeight:500,color:C.sub,marginBottom:7,textTransform:"uppercase",letterSpacing:0.8}},"Coming in 2026"),
+      React.createElement("div",{style:{display:"flex",gap:5,overflowX:"auto",paddingBottom:3}},
+        Object.entries(COMING).map(function(item){var mo=item[0],titles=item[1];return React.createElement("div",{key:mo,style:{...SS.card,minWidth:130,flex:"0 0 auto",marginBottom:0}},React.createElement("div",{style:{fontSize:11,fontWeight:600,color:C.gold,marginBottom:5}},mo),titles.map(function(t,i){return React.createElement("div",{key:i,style:{fontSize:11,color:C.tan,marginBottom:2,paddingLeft:4,borderLeft:"2px solid "+C.border}},t);}));})
+      )
+    ),
+    ["Watching","Want to Watch","Recommend","Watched"].map(function(status){
+      var group=filtered.filter(function(sh){return sh.status===status;});
+      if(!group.length)return null;
+      return React.createElement("div",{key:status},
+        React.createElement("div",{style:{fontSize:11,fontWeight:500,color:C.sub,margin:"10px 0 5px",textTransform:"uppercase",letterSpacing:0.8}},status+" ("+group.length+")"),
+        group.map(function(sh){return React.createElement(ShowCard,{key:sh.id,show:sh,setShows:setShows,onEdit:function(){openEdit("shows",sh);},onDel:function(){askDelete("shows",sh.id,sh.title);},move:move});})
+      );
+    }),
+    filtered.length===0&&React.createElement(Empty,{label:"No shows found!"})
+  );
+}
+
+function WeekGrid(p){
+  var week=p.week,setWeek=p.setWeek;
+  var addSt=useState(null); var adding=addSt[0]; var setAdding=addSt[1];
+  var nwSt=useState({title:"",streaming:"",time:""}); var nw=nwSt[0]; var setNw=nwSt[1];
+  function addDay(day){if(!nw.title)return;setWeek(function(w){return{...w,[day]:[...(w[day]||[]),{...nw,id:Date.now()}]};});setAdding(null);setNw({title:"",streaming:"",time:""});}
+  function rem(day,id){setWeek(function(w){return{...w,[day]:w[day].filter(function(x){return x.id!==id;})};});}
+  return React.createElement("div",{style:{display:"flex",gap:5,overflowX:"auto",paddingBottom:3}},
+    DAYS.map(function(day){
+      return React.createElement("div",{key:day,style:{...SS.card,minWidth:100,flex:"0 0 auto",marginBottom:0}},
+        React.createElement("div",{style:{fontSize:10,fontWeight:600,color:C.gold,marginBottom:5,textTransform:"uppercase"}},day.slice(0,3)),
+        (week[day]||[]).map(function(sh){return React.createElement("div",{key:sh.id,style:{marginBottom:4}},React.createElement("div",{style:{fontSize:11,color:C.light}},sh.title),sh.streaming&&React.createElement("div",{style:{fontSize:10,color:C.sub}},sh.streaming),React.createElement("button",{style:{fontSize:9,color:C.red,background:"none",border:"none",cursor:"pointer",padding:0},onClick:function(){rem(day,sh.id);}},"remove"));}),
+        adding===day
+          ?React.createElement("div",null,
+              React.createElement("input",{style:{...SS.inp,marginBottom:2,fontSize:11,padding:"4px 7px"},placeholder:"Title",value:nw.title,onChange:function(e){setNw({...nw,title:e.target.value});}}),
+              React.createElement("select",{style:{...SS.sel,marginBottom:2,fontSize:11,padding:"4px 7px"},value:nw.streaming,onChange:function(e){setNw({...nw,streaming:e.target.value});}},React.createElement("option",{value:""},"Service"),STREAM_LIST.map(function(s){return React.createElement("option",{key:s,value:s},s);})),
+              React.createElement("input",{style:{...SS.inp,marginBottom:3,fontSize:11,padding:"4px 7px"},placeholder:"Time",value:nw.time,onChange:function(e){setNw({...nw,time:e.target.value});}}),
+              React.createElement("div",{style:{display:"flex",gap:3}},React.createElement("button",{style:{...BN("green"),fontSize:10,padding:"3px 7px"},onClick:function(){addDay(day);}},"Add"),React.createElement("button",{style:{...BN("muted"),fontSize:10,padding:"3px 7px"},onClick:function(){setAdding(null);}},"✕"))
+            )
+          :React.createElement("button",{style:{fontSize:10,color:C.sub,background:"none",border:"1px dashed "+C.border,borderRadius:5,cursor:"pointer",padding:"3px 0",width:"100%",marginTop:2},onClick:function(){setAdding(day);}},"+ Add")
+      );
+    })
+  );
+}
+
+function ShowCard(p){
+  var show=p.show,setShows=p.setShows,onEdit=p.onEdit,onDel=p.onDel,move=p.move;
+  var c=statusColor(show.status);
+  var lc=show.status==="Watching"?"#7aaddd":show.status==="Watched"?C.green:show.status==="Recommend"?C.gold:C.accent;
+  var binge=show.startedDate&&show.finishedDate?Math.max(1,Math.round((new Date(show.finishedDate)-new Date(show.startedDate))/86400000)+1):null;
+  return React.createElement("div",{style:{...SS.card,borderLeft:"3px solid "+lc}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+      React.createElement("div",{style:{flex:1}},
+        React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light,marginBottom:2}},show.title),
+        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,marginBottom:4}},
+          show.streaming&&React.createElement(Chip,{bg:"#1a1a0f",tx:C.tan},show.streaming),
+          show.genre&&React.createElement(Chip,{bg:"#1a150f",tx:C.sub},show.genre),
+          show.seasons&&React.createElement(Chip,{bg:"#141210",tx:C.muted},show.seasons+"s"),
+          React.createElement(Chip,{bg:c.bg,tx:c.tx},show.status),
+          show.day&&React.createElement(Chip,{bg:"#101510",tx:C.green},show.day),
+          binge&&React.createElement(Chip,{bg:"#1a1a0f",tx:C.tan},"⚡ "+binge+"d"),
+          show.recBy&&React.createElement(Chip,{bg:"#150f1a",tx:"#b89fd4"},"rec: "+show.recBy)
+        ),
+        React.createElement(Stars,{val:show.rating,set:function(v){setShows(function(arr){return arr.map(function(x){return x.id===show.id?{...x,rating:v}:x;});});}}),
+        show.synopsis&&React.createElement("p",{style:{fontSize:11,color:C.muted,margin:"4px 0 0",lineHeight:1.6}},show.synopsis),
+        show.notes&&React.createElement("p",{style:{fontSize:11,color:C.sub,margin:"3px 0 0"}},show.notes),
+        React.createElement("div",{style:{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}},
+          show.status!=="Watched"&&React.createElement("button",{style:{...BN("green"),fontSize:11,padding:"4px 9px"},onClick:function(){move(show.id,"Watched");}},"✓ Watched"),
+          show.status!=="Recommend"&&React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"4px 9px"},onClick:function(){move(show.id,"Recommend");}},"★ Rec"),
+          show.status!=="Watching"&&React.createElement("button",{style:{...BN("blue"),fontSize:11,padding:"4px 9px"},onClick:function(){move(show.id,"Watching");}},"▶ Watching")
+        )
+      ),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:3,marginLeft:7}},
+        React.createElement("button",{style:BN("muted"),onClick:onEdit},"Edit"),
+        React.createElement("button",{style:{...BN("danger"),padding:"4px 8px",fontSize:11},onClick:onDel},"✕")
+      )
+    )
+  );
+}
+
+// ──Movies ─────────────────────────────────────────────────────────────────
+function MoviesTab(p){
+  var movies=p.movies,setMovies=p.setMovies,fi=p.fi,search=p.search,setSearch=p.setSearch,filt=p.filt,setFilt=p.setFilt,sortBy=p.sortBy,setSortBy=p.setSortBy,openAdd=p.openAdd,openEdit=p.openEdit,askDelete=p.askDelete;
+  var MSTATUS=["All","Want to Watch","Watch Next","Seen","Recommend"];
+  var filtered=fi(movies);
+  return React.createElement("div",{style:SS.sec},
+    React.createElement("div",{style:{...SS.g3,marginBottom:8}},
+      React.createElement("div",{style:SS.stat},React.createElement("p",{style:SS.sn},movies.filter(function(m){return m.status==="Seen";}).length),React.createElement("p",{style:SS.sl},"Seen")),
+      React.createElement("div",{style:SS.stat},React.createElement("p",{style:SS.sn},movies.filter(function(m){return m.status==="Want to Watch";}).length),React.createElement("p",{style:SS.sl},"Want to Watch")),
+      React.createElement("div",{style:SS.stat},React.createElement("p",{style:SS.sn},movies.filter(function(m){return m.status==="Watch Next";}).length),React.createElement("p",{style:SS.sl},"Watch Next"))
+    ),
+    React.createElement(SBar,{v:search,set:setSearch,btnEl:React.createElement("button",{style:BN(),onClick:function(){openAdd("movies");}},"+Movie")}),
+    React.createElement(SortBar,{sortBy:sortBy,setSortBy:setSortBy,options:[{v:"rating",l:"Sort: Rating"},{v:"title",l:"Sort: A→Z"},{v:"newest",l:"Sort: Year"}]}),
+    React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}},MSTATUS.map(function(st){return React.createElement("button",{key:st,style:{...BN(filt===st?"gold":"muted"),padding:"5px 10px",fontSize:11},onClick:function(){setFilt(st);}},st);})),
+    ["Watch Next","Want to Watch","Recommend","Seen"].map(function(status){
+      var group=filtered.filter(function(m){return m.status===status;});
+      if(!group.length)return null;
+      return React.createElement("div",{key:status},
+        React.createElement("div",{style:{fontSize:11,fontWeight:500,color:C.sub,margin:"10px 0 5px",textTransform:"uppercase",letterSpacing:0.8}},status+" ("+group.length+")"),
+        group.map(function(m){return React.createElement(MovieCard,{key:m.id,movie:m,setMovies:setMovies,onEdit:function(){openEdit("movies",m);},onDel:function(){askDelete("movies",m.id,m.title);}});})
+      );
+    }),
+    filtered.length===0&&React.createElement(Empty,{label:"No movies found!"})
+  );
+}
+
+function MovieCard(p){
+  var movie=p.movie,setMovies=p.setMovies,onEdit=p.onEdit,onDel=p.onDel;
+  var c=statusColor(movie.status);
+  var lc=movie.status==="Seen"?C.green:movie.status==="Recommend"?C.gold:movie.status==="Watch Next"?"#7aaddd":C.accent;
+  var released=isReleased(movie.releaseDate);
+  return React.createElement("div",{style:{...SS.card,borderLeft:"3px solid "+lc}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+      React.createElement("div",{style:{flex:1}},
+        React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light,marginBottom:2}},movie.title,movie.year&&React.createElement("span",{style:{fontSize:11,color:C.muted}}," ("+movie.year+")")),
+        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,marginBottom:4}},
+          movie.venue&&React.createElement(Chip,{bg:"#1a1a0f",tx:C.tan},movie.venue),
+          movie.genre&&React.createElement(Chip,{bg:"#1a150f",tx:C.sub},movie.genre),
+          React.createElement(Chip,{bg:c.bg,tx:c.tx},movie.status),
+          movie.releaseDate&&React.createElement(Chip,{bg:released?"#0f1a10":"#1a1a00",tx:released?C.green:C.gold},released?"Now Available":"📅 "+movie.releaseDate),
+          movie.recBy&&React.createElement(Chip,{bg:"#150f1a",tx:"#b89fd4"},"rec: "+movie.recBy)
+        ),
+        React.createElement(Stars,{val:movie.rating,set:function(v){setMovies(function(arr){return arr.map(function(x){return x.id===movie.id?{...x,rating:v}:x;});});}}),
+        movie.synopsis&&React.createElement("p",{style:{fontSize:11,color:C.muted,margin:"4px 0 0",lineHeight:1.6}},movie.synopsis)
+      ),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:3,marginLeft:7}},
+        React.createElement("button",{style:BN("muted"),onClick:onEdit},"Edit"),
+        React.createElement("button",{style:{...BN("danger"),padding:"4px 8px",fontSize:11},onClick:onDel},"✕")
+      )
+    )
+  );
+}
+
+// ──Watch List ─────────────────────────────────────────────────────────────
+function WatchListTab(p){
+  var shows=p.shows,setShows=p.setShows,movies=p.movies,setMovies=p.setMovies,openEdit=p.openEdit;
+  var vfSt=useState("All"); var venueFilter=vfSt[0]; var setVenueFilter=vfSt[1];
+  var rec=shows.filter(function(s){return s.status==="Recommend";});
+  var ww=movies.filter(function(m){return m.status==="Want to Watch"||m.status==="Watch Next";});
+  var filtMovies=venueFilter==="All"?ww:venueFilter==="Theatre"?ww.filter(function(m){return m.venue==="Theatre";}):ww.filter(function(m){return m.venue!=="Theatre";});
+  return React.createElement("div",{style:SS.sec},
+    rec.length>0&&React.createElement("div",null,
+      React.createElement("div",{style:{fontSize:13,fontWeight:600,color:C.gold,marginBottom:7}},"⭐ Recommended Shows ("+rec.length+")"),
+      rec.map(function(sh){return React.createElement("div",{key:sh.id,style:{...SS.card,borderLeft:"3px solid "+C.gold}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+          React.createElement("div",{style:{flex:1}},
+            React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light}},sh.title),
+            React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,margin:"4px 0"}},sh.streaming&&React.createElement(Chip,{bg:"#1a1a0f",tx:C.tan},sh.streaming),sh.genre&&React.createElement(Chip,{bg:"#1a150f",tx:C.sub},sh.genre)),
+            React.createElement(Stars,{val:sh.rating,set:function(v){setShows(function(arr){return arr.map(function(x){return x.id===sh.id?{...x,rating:v}:x;});});}}),
+            sh.synopsis&&React.createElement("p",{style:{fontSize:11,color:C.muted,margin:"5px 0 0",lineHeight:1.6}},sh.synopsis)
+          ),
+          React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"4px 9px"},onClick:function(){openEdit("shows",sh);}},"Edit")
+        )
+      );})
+    ),
+    React.createElement("div",{style:{marginTop:14}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}},
+        React.createElement("div",{style:{fontSize:13,fontWeight:600,color:C.gold}},"🎬 Movies To Watch ("+ww.length+")"),
+        React.createElement("div",{style:{display:"flex",gap:4}},["All","Theatre","Streaming"].map(function(v){return React.createElement("button",{key:v,style:{...BN(venueFilter===v?"gold":"muted"),padding:"4px 10px",fontSize:11},onClick:function(){setVenueFilter(v);}},v);}))
+      ),
+      filtMovies.length===0&&React.createElement(Empty,{label:"No movies in this category!"}),
+      filtMovies.sort(function(a,b){return(a.releaseDate||"9999").localeCompare(b.releaseDate||"9999");}).map(function(m){
+        var released=isReleased(m.releaseDate);
+        return React.createElement("div",{key:m.id,style:{...SS.card,borderLeft:"3px solid "+(released?C.green:C.accent)}},
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+            React.createElement("div",{style:{flex:1}},
+              React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light}},m.title,m.year&&React.createElement("span",{style:{fontSize:11,color:C.muted}}," ("+m.year+")")),
+              React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,margin:"4px 0"}},
+                m.venue&&React.createElement(Chip,{bg:"#1a1a0f",tx:C.tan},m.venue),
+                m.genre&&React.createElement(Chip,{bg:"#1a150f",tx:C.sub},m.genre),
+                m.releaseDate&&React.createElement(Chip,{bg:released?"#0f1a10":"#1a1a00",tx:released?C.green:C.gold},released?"Now Available":"📅 "+m.releaseDate)
+              ),
+              React.createElement(Stars,{val:m.rating,set:function(v){setMovies(function(arr){return arr.map(function(x){return x.id===m.id?{...x,rating:v}:x;});})}})
+            ),
+            React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"4px 9px"},onClick:function(){openEdit("movies",m);}},"Edit")
+          )
+        );
+      })
+    ),
+    rec.length===0&&ww.length===0&&React.createElement(Empty,{label:"Nothing here yet!"})
+  );
+}
+
+// ──YouTube ────────────────────────────────────────────────────────────────
+function YouTubeTab(p){
+  var youtube=p.youtube,setYoutube=p.setYoutube,openAdd=p.openAdd,openEdit=p.openEdit,askDelete=p.askDelete,search=p.search,setSearch=p.setSearch;
+  var filtered=search?youtube.filter(function(y){return JSON.stringify(y).toLowerCase().includes(search.toLowerCase());}):youtube;
+  function tog(id){setYoutube(function(arr){return arr.map(function(y){return y.id===id?{...y,watched:!y.watched}:y;});});}
+  return React.createElement("div",{style:SS.sec},
+    React.createElement(SBar,{v:search,set:setSearch,btnEl:React.createElement("button",{style:BN(),onClick:function(){openAdd("youtube");}},"+Video")}),
+    React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+      React.createElement("div",{style:SS.stat},React.createElement("p",{style:SS.sn},youtube.filter(function(y){return!y.watched;}).length),React.createElement("p",{style:SS.sl},"To Watch")),
+      React.createElement("div",{style:SS.stat},React.createElement("p",{style:SS.sn},youtube.filter(function(y){return y.watched;}).length),React.createElement("p",{style:SS.sl},"Watched"))
+    ),
+    filtered.filter(function(y){return!y.watched;}).length>0&&React.createElement("div",null,
+      React.createElement("div",{style:{fontSize:11,color:C.sub,marginBottom:5,textTransform:"uppercase",letterSpacing:0.8}},"Up Next"),
+      filtered.filter(function(y){return!y.watched;}).map(function(y){return React.createElement(YTCard,{key:y.id,video:y,onEdit:function(){openEdit("youtube",y);},onDel:function(){askDelete("youtube",y.id,y.title);},onTog:function(){tog(y.id);}});})
+    ),
+    filtered.filter(function(y){return y.watched;}).length>0&&React.createElement("div",null,
+      React.createElement("div",{style:{fontSize:11,color:C.sub,margin:"12px 0 5px",textTransform:"uppercase",letterSpacing:0.8}},"Watched"),
+      filtered.filter(function(y){return y.watched;}).map(function(y){return React.createElement(YTCard,{key:y.id,video:y,onEdit:function(){openEdit("youtube",y);},onDel:function(){askDelete("youtube",y.id,y.title);},onTog:function(){tog(y.id);}});})
+    ),
+    filtered.length===0&&React.createElement(Empty,{label:"Save YouTube videos to watch later!"})
+  );
+}
+
+function YTCard(p){
+  var video=p.video,onEdit=p.onEdit,onDel=p.onDel,onTog=p.onTog;
+  return React.createElement("div",{style:{...SS.card,opacity:video.watched?0.6:1,borderLeft:"3px solid "+(video.watched?C.green:C.red)}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+      React.createElement("div",{style:{flex:1}},
+        React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light,marginBottom:2}},video.title),
+        video.channel&&React.createElement("div",{style:{fontSize:12,color:C.tan,marginBottom:3}},video.channel),
+        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,marginBottom:3}},
+          video.category&&React.createElement(Chip,{bg:"#1a150f",tx:C.sub},video.category),
+          React.createElement(Chip,{bg:video.watched?"#0f1a10":"#1a0f0f",tx:video.watched?C.green:C.red},video.watched?"Watched":"To Watch")
+        ),
+        video.url&&React.createElement("a",{href:video.url,target:"_blank",rel:"noreferrer",style:{fontSize:12,color:C.tan}},"▶ Open Video"),
+        video.notes&&React.createElement("p",{style:{fontSize:11,color:C.muted,margin:"4px 0 0"}},video.notes),
+        React.createElement("button",{style:{...BN(video.watched?"muted":"green"),fontSize:11,padding:"4px 9px",marginTop:6},onClick:onTog},video.watched?"↩ Unwatch":"✓ Mark Watched")
+      ),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:3,marginLeft:7}},
+        React.createElement("button",{style:BN("muted"),onClick:onEdit},"Edit"),
+        React.createElement("button",{style:{...BN("danger"),padding:"4px 8px",fontSize:11},onClick:onDel},"✕")
+      )
+    )
+  );
+}
+
+// ──Friends ────────────────────────────────────────────────────────────────
+function FriendsTab(p){
+  var shows=p.shows,movies=p.movies;
+  var flSt=usePersist("friendlist3",["Jill","Amber","Rae'Van","Lynn","Aunt","Other"]); var friendList=flSt[0]; var setFriendList=flSt[1];
+  var selSt=useState("All"); var selFriend=selSt[0]; var setSelFriend=selSt[1];
+  var eiSt=useState(null); var editingIdx=eiSt[0]; var setEditingIdx=eiSt[1];
+  var evSt=useState(""); var editVal=evSt[0]; var setEditVal=evSt[1];
+  var anSt=useState(false); var addingNew=anSt[0]; var setAddingNew=anSt[1];
+  var nnSt=useState(""); var newName=nnSt[0]; var setNewName=nnSt[1];
+  var allRecs=[...shows.filter(function(s){return s.recBy;}).map(function(s){return{...s,_type:"show"};}), ...movies.filter(function(m){return m.recBy;}).map(function(m){return{...m,_type:"movie"};})];
+  var filtered=selFriend==="All"?allRecs:allRecs.filter(function(r){return r.recBy===selFriend;});
+  var fc={};allRecs.forEach(function(r){fc[r.recBy]=(fc[r.recBy]||0)+1;});
+  function startEdit(i){setEditingIdx(i);setEditVal(friendList[i]);}
+  function saveEdit(i){if(!editVal.trim())return;setFriendList(function(l){var n=[...l];n[i]=editVal.trim();return n;});setEditingIdx(null);}
+  function removeFriend(i){var name=friendList[i];if(selFriend===name)setSelFriend("All");setFriendList(function(l){return l.filter(function(_,idx){return idx!==i;});});}
+  function addFriend(){if(!newName.trim())return;setFriendList(function(l){return[...l,newName.trim()];});setNewName("");setAddingNew(false);}
+  return React.createElement("div",{style:SS.sec},
+    React.createElement("div",{style:{...SS.card,marginBottom:10,borderLeft:"3px solid "+C.purple}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}},
+        React.createElement("div",{style:{fontSize:11,fontWeight:600,color:"#b89fd4",textTransform:"uppercase",letterSpacing:0.8}},"Manage Friends"),
+        React.createElement("button",{style:{...BN("purple"),fontSize:11,padding:"3px 10px"},onClick:function(){setAddingNew(true);setNewName("");}},"+ Add")
+      ),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:5}},
+        friendList.map(function(f,i){
+          return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:6,background:C.tag,borderRadius:7,padding:"5px 9px"}},
+            editingIdx===i
+              ?React.createElement("div",{style:{display:"flex",flex:1,gap:5,alignItems:"center"}},
+                  React.createElement("input",{style:{...SS.inp,flex:1,padding:"4px 8px",fontSize:12},value:editVal,onChange:function(e){setEditVal(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")saveEdit(i);if(e.key==="Escape")setEditingIdx(null);},autoFocus:true}),
+                  React.createElement("button",{style:{...BN("green"),fontSize:11,padding:"3px 8px"},onClick:function(){saveEdit(i);}},"Save"),
+                  React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"3px 8px"},onClick:function(){setEditingIdx(null);}},"✕")
+                )
+              :React.createElement("div",{style:{display:"flex",flex:1,alignItems:"center",justifyContent:"space-between"}},
+                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:7}},
+                    React.createElement("span",{style:{fontSize:13,color:C.light}},f),
+                    fc[f]&&React.createElement("span",{style:{fontSize:10,color:"#b89fd4"}},fc[f]+" rec"+(fc[f]!==1?"s":""))
+                  ),
+                  React.createElement("div",{style:{display:"flex",gap:4}},
+                    React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"3px 8px"},onClick:function(){startEdit(i);}},"Edit"),
+                    React.createElement("button",{style:{...BN("danger"),fontSize:11,padding:"3px 7px"},onClick:function(){removeFriend(i);}},"✕")
+                  )
+                )
+          );
+        }),
+        addingNew&&React.createElement("div",{style:{display:"flex",gap:5,alignItems:"center",background:C.tag,borderRadius:7,padding:"5px 9px"}},
+          React.createElement("input",{style:{...SS.inp,flex:1,padding:"4px 8px",fontSize:12},placeholder:"Friend's name...",value:newName,onChange:function(e){setNewName(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")addFriend();if(e.key==="Escape")setAddingNew(false);},autoFocus:true}),
+          React.createElement("button",{style:{...BN("green"),fontSize:11,padding:"3px 8px"},onClick:addFriend},"Add"),
+          React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"3px 8px"},onClick:function(){setAddingNew(false);}},"✕")
+        )
+      )
+    ),
+    React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}},
+      ["All",...friendList].map(function(f){return React.createElement("button",{key:f,style:{...BN(selFriend===f?"purple":"muted"),padding:"5px 10px",fontSize:11},onClick:function(){setSelFriend(f);}},f);})
+    ),
+    filtered.length===0&&React.createElement(Empty,{label:selFriend==="All"?"No recs yet — edit any show or movie and set Recommended By!":"Nothing from "+selFriend+" yet!"}),
+    filtered.map(function(item){
+      var c=statusColor(item.status);
+      return React.createElement("div",{key:item.id,style:{...SS.card,borderLeft:"3px solid "+C.purple}},
+        React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light,marginBottom:3}},item.title),
+        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:3,marginBottom:3}},
+          React.createElement(Chip,{bg:"#150f1a",tx:"#b89fd4"},"👤 "+item.recBy),
+          React.createElement(Chip,{bg:item._type==="show"?"#0a1220":"#0f1a14",tx:item._type==="show"?"#7aaddd":C.green},item._type),
+          item.genre&&React.createElement(Chip,{bg:"#1a150f",tx:C.sub},item.genre),
+          item.status&&React.createElement(Chip,{bg:c.bg,tx:c.tx},item.status),
+          item.streaming&&React.createElement(Chip,{bg:"#1a1a0f",tx:C.tan},item.streaming)
+        ),
+        (item.synopsis||item.notes)&&React.createElement("p",{style:{fontSize:11,color:C.muted,margin:"3px 0 0",lineHeight:1.5}},item.synopsis||item.notes)
+      );
+    })
+  );
+}
+
+// ──Import ─────────────────────────────────────────────────────────────────
+function ImportModal(p){
+  var shows=p.shows,setShows=p.setShows,movies=p.movies,setMovies=p.setMovies,onClose=p.onClose;
+  var textSt=useState(""); var text=textSt[0]; var setText=textSt[1];
+  var typeSt=useState("shows"); var type=typeSt[0]; var setType=typeSt[1];
+  var loadSt=useState(false); var loading=loadSt[0]; var setLoading=loadSt[1];
+  var prevSt=useState(null); var preview=prevSt[0]; var setPreview=prevSt[1];
+  var doneSt=useState(false); var done=doneSt[0]; var setDone=doneSt[1];
+  async function parse(){
+    if(!text.trim())return;setLoading(true);setPreview(null);
+    var prompts={shows:"Parse into shows JSON array: [{title,genre,streaming,status,rating,synopsis,seasons,day,notes}]. Empty string unknowns.\\n"+text,movies:"Parse into movies JSON array: [{title,genre,streaming,status,rating,synopsis,year,notes,releaseDate,venue}]. Empty string unknowns.\\n"+text};
+    try{var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,messages:[{role:"user",content:prompts[type]}]})});var data=await res.json();var raw=data.content&&data.content[0]?data.content[0].text:"[]";setPreview(JSON.parse(raw.replace(/```json|```/g,"").trim()));}catch(e){setPreview([]);}
+    setLoading(false);
+  }
+  function doImport(){if(!preview||!preview.length)return;var withIds=preview.map(function(pp){return{...pp,id:Date.now()+Math.random(),recBy:""};});if(type==="shows")setShows(function(s){return[...s,...withIds];});if(type==="movies")setMovies(function(m){return[...m,...withIds];});setDone(true);}
+  return React.createElement("div",{className:"mo",onClick:onClose},
+    React.createElement("div",{className:"mi",onClick:function(e){e.stopPropagation();},style:{maxWidth:500}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},React.createElement("span",{style:{fontSize:15,fontWeight:600,color:C.gold}},"⬆ Bulk Import"),React.createElement("button",{style:{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20},onClick:onClose},"✕")),
+      done
+        ?React.createElement("div",{style:{textAlign:"center",padding:"20px 0"}},React.createElement("div",{style:{fontSize:28,marginBottom:8}},"✓"),React.createElement("div",{style:{fontSize:14,color:C.green,marginBottom:4}},"Imported "+preview.length+" "+type+"!"),React.createElement("button",{style:{...BN(),marginTop:12},onClick:onClose},"Done"))
+        :React.createElement("div",null,
+            React.createElement("div",{style:{display:"flex",gap:6,marginBottom:10}},[["shows","Shows"],["movies","Movies"]].map(function(item){return React.createElement("button",{key:item[0],style:{...BN(type===item[0]?"gold":"muted"),flex:1,fontSize:12},onClick:function(){setType(item[0]);setPreview(null);}},item[1]);})),
+            React.createElement("label",{style:SS.lbl},"Paste your list — AI will parse it"),
+            React.createElement("textarea",{style:{...SS.ta,minHeight:90,marginBottom:8},placeholder:"e.g.\\n- The Bear (Hulu)\\n- White Lotus\\n- Succession",value:text,onChange:function(e){setText(e.target.value);}}),
+            React.createElement("button",{style:{...BN(),width:"100%",marginBottom:10,opacity:loading?0.6:1},onClick:parse,disabled:loading},loading?"Parsing…":"🎬 Parse with AI"),
+            preview&&preview.length>0&&React.createElement("div",null,React.createElement("div",{style:{fontSize:12,color:C.sub,marginBottom:6}},preview.length+" items found:"),React.createElement("div",{style:{maxHeight:150,overflowY:"auto",marginBottom:8}},preview.map(function(pp,i){return React.createElement("div",{key:i,style:{...SS.card,marginBottom:4,padding:"7px 10px"}},React.createElement("div",{style:{fontSize:13,color:C.light}},pp.title),React.createElement("div",{style:{fontSize:11,color:C.muted}},pp.genre+(pp.status?" · "+pp.status:"")));})),React.createElement("button",{style:{...BN("green"),width:"100%"},onClick:doImport},"Import All "+preview.length+" Items")),
+            preview&&preview.length===0&&React.createElement("div",{style:{fontSize:12,color:C.red,marginBottom:8}},"Couldn't parse — try rephrasing.")
+          )
+    )
+  );
+}
+
+// ──Edit Modal ─────────────────────────────────────────────────────────────
+function EditModal(p){
+  var item=p.item,setItem=p.setItem,onSave=p.onSave,onClose=p.onClose;
+  var t=item._type;
+  function f(k,v){setItem(function(i){return{...i,[k]:v};});}
+  var loadSt=useState(false); var loading=loadSt[0]; var setLoading=loadSt[1];
+  var aiSt=useState(false); var aiDone=aiSt[0]; var setAiDone=aiSt[1];
+  function onFocus(e){setTimeout(function(){e.target.scrollIntoView({behavior:"smooth",block:"center"});},300);}
+  async function autoFill(){
+    if(!item.title||!item.title.trim())return;setLoading(true);
+    try{
+      var prompt=t==="shows"
+        ?'For the TV show "'+item.title+'", return ONLY JSON: {"genre":"Action/Comedy/Crime/Dark Comedy/Drama/Fantasy/Horror/Mystery/Romance/Sci-Fi/Thriller/Other","streaming":"Netflix/HBO Max/Hulu/Apple TV+/Disney+/Prime Video/Paramount+/Peacock/Zeus/Starz/Showtime/Other","seasons":"number","synopsis":"1-2 sentences"}'
+        :'For the movie "'+item.title+'", return ONLY JSON: {"genre":"Action/Comedy/Crime/Drama/Fantasy/Horror/Mystery/Romance/Sci-Fi/Thriller/Other","synopsis":"1-2 sentences","year":"release year"}';
+      var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:400,messages:[{role:"user",content:prompt}]})});
+      var data=await res.json();var txt=data.content&&data.content[0]?data.content[0].text:"{}";
+      var parsed=JSON.parse(txt.replace(/```json|```/g,"").trim());
+      setItem(function(i){return{...i,...parsed};});setAiDone(true);
+    }catch(e){console.error(e);}
+    setLoading(false);
+  }
+  function field(lbl,child){return React.createElement("div",{style:{marginBottom:8}},React.createElement("label",{style:SS.lbl},lbl),child);}
+  function sinp(k,extra){return React.createElement("input",{style:SS.inp,value:item[k]||"",onChange:function(e){f(k,e.target.value);},onFocus:onFocus,...(extra||{})});}
+  function ssel(k,opts){return React.createElement("select",{style:SS.sel,value:item[k]||"",onChange:function(e){f(k,e.target.value);}},React.createElement("option",{value:""},"—"),opts.map(function(o){return React.createElement("option",{key:o,value:o},o);}));}
+  function sta(k){return React.createElement("textarea",{style:SS.ta,value:item[k]||"",onChange:function(e){f(k,e.target.value);},onFocus:onFocus});}
+  var FRIEND_OPTS=["Jill","Amber","Rae'Van","Lynn","Aunt","Other"];
+  return React.createElement("div",{className:"mo"},
+    React.createElement("div",{className:"mi"},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
+        React.createElement("span",{style:{fontSize:15,fontWeight:600,color:C.gold}},(item._new?"Add ":"Edit ")+(t==="shows"?"Show":t==="movies"?"Movie":"Video")),
+        React.createElement("button",{style:{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20,padding:"4px 8px"},onClick:onClose},"✕")
+      ),
+      (t==="shows"||t==="movies")&&React.createElement("div",{style:{marginBottom:8}},
+        React.createElement("label",{style:SS.lbl},"Title"),
+        React.createElement("div",{style:{display:"flex",gap:5}},
+          React.createElement("input",{style:{...SS.inp,flex:1},value:item.title||"",onChange:function(e){f("title",e.target.value);setAiDone(false);},onFocus:onFocus}),
+          React.createElement("button",{style:{...BN(aiDone?"green":"gold"),whiteSpace:"nowrap",opacity:loading?0.6:1,minWidth:90,fontSize:12},onClick:autoFill,disabled:loading},loading?"Filling…":aiDone?"✓ Filled":"🎬 Auto-Fill")
+        )
+      ),
+      t==="shows"&&React.createElement("div",null,
+        React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Genre"),ssel("genre",GENRES)),
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Streaming"),React.createElement(StreamSel,{value:item.streaming||"",onChange:function(v){f("streaming",v);}}))
+        ),
+        React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Status"),ssel("status",["Watching","Watched","Recommend","Want to Watch"])),
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Seasons"),sinp("seasons",{type:"number"}))
+        ),
+        field("Airs On",ssel("day",DAYS)),
+        React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Started"),React.createElement("input",{style:SS.inp,type:"date",value:item.startedDate||"",onChange:function(e){f("startedDate",e.target.value);}})),
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Finished"),React.createElement("input",{style:SS.inp,type:"date",value:item.finishedDate||"",onChange:function(e){f("finishedDate",e.target.value);}}))
+        ),
+        field("Recommended By",ssel("recBy",FRIEND_OPTS)),
+        field("Synopsis",sta("synopsis")),
+        field("Notes",sta("notes"))
+      ),
+      t==="movies"&&React.createElement("div",null,
+        React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Genre"),ssel("genre",GENRES)),
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Year"),sinp("year",{type:"number"}))
+        ),
+        React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Venue / Streaming"),ssel("venue",["Theatre",...STREAM_LIST.filter(function(s){return s!=="Theatre"&&s!=="Other";})])),
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Status"),ssel("status",["Want to Watch","Watch Next","Seen","Recommend"]))
+        ),
+        field("Release Date",React.createElement("input",{style:SS.inp,type:"date",value:item.releaseDate||"",onChange:function(e){f("releaseDate",e.target.value);}})),
+        field("Recommended By",ssel("recBy",FRIEND_OPTS)),
+        field("Synopsis",sta("synopsis")),
+        field("Notes",sinp("notes"))
+      ),
+      t==="youtube"&&React.createElement("div",null,
+        field("Title",sinp("title")),
+        field("YouTube URL",React.createElement("input",{style:SS.inp,placeholder:"https://youtube.com/...",value:item.url||"",onChange:function(e){f("url",e.target.value);},onFocus:onFocus})),
+        React.createElement("div",{style:{...SS.g2,marginBottom:8}},
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Channel"),sinp("channel")),
+          React.createElement("div",null,React.createElement("label",{style:SS.lbl},"Category"),sinp("category"))
+        ),
+        field("Notes",sta("notes"))
+      ),
+      (t==="shows"||t==="movies")&&React.createElement("div",{style:{marginBottom:10}},
+        React.createElement("label",{style:SS.lbl},"Your Rating"),
+        React.createElement(Stars,{val:item.rating||0,set:function(v){f("rating",v);},big:true})
+      ),
+      React.createElement("div",{style:{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4,paddingBottom:4}},
+        React.createElement("button",{style:BN("muted"),onClick:onClose},"Cancel"),
+        React.createElement("button",{style:BN(),onClick:onSave},"Save")
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
