@@ -94,7 +94,16 @@ function usePersist(key,init){
   useEffect(function(){try{localStorage.setItem("bmt_"+key,JSON.stringify(val));}catch(e){};},[key,val]);
   return[val,setVal];
 }
-function isReleased(d){return d&&new Date(d)<=new Date();}
+function isReleased(d){
+  if(!d)return false;
+  try{var x=new Date(d.length===10?d+"T12:00:00":d);return!isNaN(x.getTime())&&x<=new Date();}catch(e){return false;}
+}
+function formatShortDate(d){
+  if(!d)return"";
+  try{var x=new Date(d.length===10?d+"T12:00:00":d);if(isNaN(x.getTime()))return d;return x.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}catch(e){return d;}
+}
+function movieVenueLabel(m){return(m.venue&&String(m.venue).trim())||(m.streaming&&String(m.streaming).trim())||"";}
+function isTheatreMovie(m){return(m.venue||"")==="Theatre";}
 function statusColor(st){
   if(st==="Watched"||st==="Seen")return{bg:"#0f1a10",tx:C.green};
   if(st==="Watching")return{bg:"#0a1220",tx:"#7aaddd"};
@@ -352,7 +361,32 @@ function HomeTab(p){
   var genreCounts={};shows.concat(movies).filter(function(x){return x.status==="Watched"||x.status==="Seen";}).forEach(function(x){if(x.genre)genreCounts[x.genre]=(genreCounts[x.genre]||0)+1;});
   var topGenres=Object.entries(genreCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
   var totalG=Object.values(genreCounts).reduce(function(a,b){return a+b;},0)||1;
-  var watchNext=movies.filter(function(m){return m.status==="Watch Next";});
+  function movieQueued(m){return m.status==="Want to Watch"||m.status==="Watch Next";}
+  var moviesStreaming=movies.filter(function(m){
+    if(!movieQueued(m)||m.status==="Seen")return false;
+    if(isTheatreMovie(m))return false;
+    if(m.status==="Watch Next")return true;
+    return!!(m.releaseDate&&isReleased(m.releaseDate));
+  }).sort(function(a,b){return a.title.localeCompare(b.title);});
+  var theatreNow=movies.filter(function(m){
+    if(!isTheatreMovie(m)||!movieQueued(m))return false;
+    return!!(m.releaseDate&&isReleased(m.releaseDate));
+  }).sort(function(a,b){return a.title.localeCompare(b.title);});
+  var theatreComingList=movies.filter(function(m){
+    if(!isTheatreMovie(m)||!movieQueued(m))return false;
+    if(m.releaseDate&&isReleased(m.releaseDate))return false;
+    return true;
+  });
+  var theatreComingDated=theatreComingList.filter(function(m){return m.releaseDate;}).sort(function(a,b){return(a.releaseDate||"").localeCompare(b.releaseDate||"");});
+  var theatreComingTba=theatreComingList.filter(function(m){return !m.releaseDate;}).sort(function(a,b){return a.title.localeCompare(b.title);});
+  function homeReleaseTile(m,extra){
+    var sub=movieVenueLabel(m);
+    return React.createElement("div",{key:m.id,style:{background:C.tag,borderRadius:8,padding:"8px 11px",flex:"1 1 130px",minWidth:115,maxWidth:220,boxSizing:"border-box"}},
+      React.createElement("div",{style:{fontSize:14,fontWeight:600,color:C.light,lineHeight:1.25}},m.title),
+      sub?React.createElement("div",{style:{fontSize:11,color:C.tan,marginTop:4}},sub):null,
+      extra?React.createElement("div",{style:{fontSize:10,color:C.sub,marginTop:3}},extra):null
+    );
+  }
   function infoCard(borderColor,label,children){return React.createElement("div",{style:{...SS.card,borderLeft:"3px solid "+borderColor,marginBottom:8}},React.createElement("div",{style:{fontSize:12,fontWeight:600,color:borderColor,marginBottom:5}},label),children);}
   return React.createElement("div",{style:SS.sec},
     infoCard(C.gold,"On Tonight · "+todayName,
@@ -366,8 +400,17 @@ function HomeTab(p){
         watching.length>5?React.createElement("div",{style:{background:C.tag,borderRadius:7,padding:"4px 9px",fontSize:12,color:C.muted}},"+"+( watching.length-5)+" more"):null
       )
     ),
-    watchNext.length>0&&infoCard(C.green,"🎬 Now Streaming — Watch Next",
-      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},watchNext.map(function(m){return React.createElement("div",{key:m.id,style:{background:C.tag,borderRadius:7,padding:"4px 9px"}},React.createElement("div",{style:{fontSize:12,color:C.light}},m.title),m.venue?React.createElement("div",{style:{fontSize:10,color:C.sub}},m.venue):null);}))
+    moviesStreaming.length>0&&infoCard("#6d9b90","🎬 Streaming now",
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},moviesStreaming.map(function(m){return homeReleaseTile(m,null);}))
+    ),
+    theatreNow.length>0&&infoCard(C.gold,"🎭 At the theatre now",
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},theatreNow.map(function(m){return homeReleaseTile(m,m.releaseDate?"Opened "+formatShortDate(m.releaseDate):null);}))
+    ),
+    (theatreComingDated.length>0||theatreComingTba.length>0)&&infoCard("#9A7A56","🎭 Coming to theatres",
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
+        theatreComingDated.map(function(m){return homeReleaseTile(m,"Opens "+formatShortDate(m.releaseDate));}),
+        theatreComingTba.map(function(m){return homeReleaseTile(m,"Date TBA");})
+      )
     ),
     React.createElement("div",{style:{...SS.g4,marginBottom:8}},
       React.createElement("div",{style:SS.stat,onClick:function(){setTab("Shows");}},React.createElement("p",{style:SS.sn},watching.length),React.createElement("p",{style:SS.sl},"Watching")),
