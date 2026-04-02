@@ -1,0 +1,3 @@
+[submodule "bb-media-tracker"]
+    path = bb-media-tracker
+    url = https://github.com/brittanydblackmon-lgtm/bb-media-tracker.git
