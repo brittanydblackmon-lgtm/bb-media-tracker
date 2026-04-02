@@ -402,13 +402,13 @@ function HomeTab(p){
     theatreNow.length>0&&infoCard(C.gold,"🎭 Now playing",
       React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},theatreNow.map(function(m){return homeReleaseTile(m,m.releaseDate?"Opened "+formatShortDate(m.releaseDate):null);}))
     ),
+    moviesStreaming.length>0&&infoCard("#6d9b90","🎬 Movies streaming",
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},moviesStreaming.map(function(m){return homeReleaseTile(m,null);}))
+    ),
     theatreComingDated.length>0&&infoCard("#9A7A56","🎭 Movies coming to theatre",
       React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
         theatreComingDated.map(function(m){return homeReleaseTile(m,"Opens "+formatShortDate(m.releaseDate));})
       )
-    ),
-    moviesStreaming.length>0&&infoCard("#6d9b90","🎬 Movies streaming",
-      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},moviesStreaming.map(function(m){return homeReleaseTile(m,null);}))
     ),
     React.createElement("div",{style:{...SS.g4,marginBottom:8}},
       React.createElement("div",{style:SS.stat,onClick:function(){setTab("Shows");}},React.createElement("p",{style:SS.sn},watching.length),React.createElement("p",{style:SS.sl},"Watching")),
