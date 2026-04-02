@@ -33,6 +33,13 @@ var STREAM_LIST=["Netflix","Disney+","Paramount+","Prime Video","Hulu","Apple TV
 var GENRES=["Action","Animation","Comedy","Crime","Dark Comedy","Documentary","Drama","Fantasy","Horror","Legal Drama","Medical Drama","Mystery","Reality","Romance","Sci-Fi","Sports Drama","Thriller","Other"];
 var TABS=["Home","Shows","Movies","Watch List","YouTube","Friends"];
 var COMING={January:["Wonder Man","The Pitt","Tell Me Lies","School Spirits","Bridgerton"],February:["Paradise","Matlock","Bridgerton"],March:["Y: Marshall's","Daredevil"],April:["Your Friends and Neighbors","The Boys"]};
+var MONTHS_2026=["January","February","March","April","May","June","July","August","September","October","November","December"];
+function normalizeComing(raw){
+  var o={};
+  MONTHS_2026.forEach(function(m){o[m]=Array.isArray(raw&&raw[m])?raw[m].map(function(t){return String(t).trim();}).filter(Boolean):[];});
+  return o;
+}
+var SEED_COMING_2026=normalizeComing(COMING);
 
 // ──palette ────────────────────────────────────────────────────────────────
 var C={
@@ -202,6 +209,9 @@ function App(){
   var moviesSt=usePersist("movies3",SEED_MOVIES); var movies=moviesSt[0]; var setMovies=moviesSt[1];
   var ytSt=usePersist("youtube3",[]); var youtube=ytSt[0]; var setYoutube=ytSt[1];
   var weekSt=usePersist("week3",SEED_WEEK); var week=weekSt[0]; var setWeek=weekSt[1];
+  var comingInitSt=useState(function(){try{var s=localStorage.getItem("bmt_coming2026");return s?normalizeComing(JSON.parse(s)):SEED_COMING_2026;}catch(e){return SEED_COMING_2026;}});
+  var coming2026=comingInitSt[0],setComing2026=comingInitSt[1];
+  useEffect(function(){try{localStorage.setItem("bmt_coming2026",JSON.stringify(coming2026));}catch(e){}},[coming2026]);
   var modalSt=useState(null); var modal=modalSt[0]; var setModal=modalSt[1];
   var editSt=useState(null); var editItem=editSt[0]; var setEditItem=editSt[1];
   var confirmSt=useState(null); var confirmDel=confirmSt[0]; var setConfirmDel=confirmSt[1];
@@ -294,7 +304,7 @@ function App(){
     ),
     // pages
     activeTab==="Home"       &&React.createElement(HomeTab,{shows:shows,movies:movies,youtube:youtube,tonightShows:tonightShows,todayName:todayName,setTab:setActiveTab,openAdd:openAdd,generateExport:generateExport,watching:watching,queued:queued}),
-    activeTab==="Shows"      &&React.createElement(ShowsTab,{shows:shows,setShows:setShows,fi:fi,search:search,setSearch:setSearch,filt:filt,setFilt:setFilt,sortBy:sortBy,setSortBy:setSortBy,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete,week:week,setWeek:setWeek}),
+    activeTab==="Shows"      &&React.createElement(ShowsTab,{shows:shows,setShows:setShows,fi:fi,search:search,setSearch:setSearch,filt:filt,setFilt:setFilt,sortBy:sortBy,setSortBy:setSortBy,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete,week:week,setWeek:setWeek,coming2026:coming2026,setComing2026:setComing2026}),
     activeTab==="Movies"     &&React.createElement(MoviesTab,{movies:movies,setMovies:setMovies,fi:fi,search:search,setSearch:setSearch,filt:filt,setFilt:setFilt,sortBy:sortBy,setSortBy:setSortBy,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete}),
     activeTab==="Watch List" &&React.createElement(WatchListTab,{shows:shows,setShows:setShows,movies:movies,setMovies:setMovies,openEdit:openEdit}),
     activeTab==="YouTube"    &&React.createElement(YouTubeTab,{youtube:youtube,setYoutube:setYoutube,openAdd:openAdd,openEdit:openEdit,askDelete:askDelete,search:search,setSearch:setSearch}),
@@ -392,7 +402,7 @@ function HomeTab(p){
 
 // ──Shows ──────────────────────────────────────────────────────────────────
 function ShowsTab(p){
-  var shows=p.shows,setShows=p.setShows,fi=p.fi,search=p.search,setSearch=p.setSearch,filt=p.filt,setFilt=p.setFilt,sortBy=p.sortBy,setSortBy=p.setSortBy,openAdd=p.openAdd,openEdit=p.openEdit,askDelete=p.askDelete,week=p.week,setWeek=p.setWeek;
+  var shows=p.shows,setShows=p.setShows,fi=p.fi,search=p.search,setSearch=p.setSearch,filt=p.filt,setFilt=p.setFilt,sortBy=p.sortBy,setSortBy=p.setSortBy,openAdd=p.openAdd,openEdit=p.openEdit,askDelete=p.askDelete,week=p.week,setWeek=p.setWeek,coming2026=p.coming2026,setComing2026=p.setComing2026;
   var SSTATUS=["All","Watching","Watched","Recommend","Want to Watch"];
   var filtered=fi(shows);
   function move(id,st){setShows(function(arr){return arr.map(function(s){return s.id===id?{...s,status:st}:s;});});}
@@ -405,10 +415,8 @@ function ShowsTab(p){
       React.createElement(WeekGrid,{week:week,setWeek:setWeek})
     ),
     React.createElement("div",{style:{marginBottom:14}},
-      React.createElement("div",{style:{fontSize:11,fontWeight:500,color:C.sub,marginBottom:7,textTransform:"uppercase",letterSpacing:0.8}},"Coming in 2026"),
-      React.createElement("div",{style:{display:"flex",gap:5,overflowX:"auto",paddingBottom:3}},
-        Object.entries(COMING).map(function(item){var mo=item[0],titles=item[1];return React.createElement("div",{key:mo,style:{...SS.card,minWidth:130,flex:"0 0 auto",marginBottom:0}},React.createElement("div",{style:{fontSize:11,fontWeight:600,color:C.gold,marginBottom:5}},mo),titles.map(function(t,i){return React.createElement("div",{key:i,style:{fontSize:11,color:C.tan,marginBottom:2,paddingLeft:4,borderLeft:"2px solid "+C.border}},t);}));})
-      )
+      React.createElement("div",{style:{fontSize:11,fontWeight:500,color:C.sub,marginBottom:7,textTransform:"uppercase",letterSpacing:0.8}},"Coming in 2026 · tap + Add per month"),
+      React.createElement(Coming2026Grid,{coming:coming2026,setComing:setComing2026})
     ),
     ["Watching","Want to Watch","Recommend","Watched"].map(function(status){
       var group=filtered.filter(function(sh){return sh.status===status;});
@@ -441,6 +449,29 @@ function WeekGrid(p){
               React.createElement("div",{style:{display:"flex",gap:3}},React.createElement("button",{style:{...BN("green"),fontSize:10,padding:"3px 7px"},onClick:function(){addDay(day);}},"Add"),React.createElement("button",{style:{...BN("muted"),fontSize:10,padding:"3px 7px"},onClick:function(){setAdding(null);}},"✕"))
             )
           :React.createElement("button",{style:{fontSize:10,color:C.sub,background:"none",border:"1px dashed "+C.border,borderRadius:5,cursor:"pointer",padding:"3px 0",width:"100%",marginTop:2},onClick:function(){setAdding(day);}},"+ Add")
+      );
+    })
+  );
+}
+
+function Coming2026Grid(p){
+  var coming=p.coming,setComing=p.setComing;
+  var addSt=useState(null); var adding=addSt[0]; var setAdding=addSt[1];
+  var nwSt=useState(""); var nw=nwSt[0]; var setNw=nwSt[1];
+  function addMonth(mo){var t=nw.trim();if(!t)return;setComing(function(c){return{...c,[mo]:[...(c[mo]||[]),t]};});setAdding(null);setNw("");}
+  function rem(mo,idx){setComing(function(c){var arr=[...(c[mo]||[])];arr.splice(idx,1);return{...c,[mo]:arr};});}
+  return React.createElement("div",{style:{display:"flex",gap:5,overflowX:"auto",paddingBottom:3}},
+    MONTHS_2026.map(function(mo){
+      var titles=coming[mo]||[];
+      return React.createElement("div",{key:mo,style:{...SS.card,minWidth:130,flex:"0 0 auto",marginBottom:0}},
+        React.createElement("div",{style:{fontSize:11,fontWeight:600,color:C.gold,marginBottom:5}},mo),
+        titles.map(function(t,i){return React.createElement("div",{key:i,style:{marginBottom:3}},React.createElement("div",{style:{fontSize:11,color:C.tan,paddingLeft:4,borderLeft:"2px solid "+C.border}},t),React.createElement("button",{style:{fontSize:9,color:C.red,background:"none",border:"none",cursor:"pointer",padding:0,display:"block"},onClick:function(){rem(mo,i);}},"remove"));}),
+        adding===mo
+          ?React.createElement("div",null,
+              React.createElement("input",{style:{...SS.inp,marginBottom:2,fontSize:11,padding:"4px 7px"},placeholder:"Show title",value:nw,onChange:function(e){setNw(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")addMonth(mo);}}),
+              React.createElement("div",{style:{display:"flex",gap:3}},React.createElement("button",{style:{...BN("green"),fontSize:10,padding:"3px 7px"},onClick:function(){addMonth(mo);}},"Add"),React.createElement("button",{style:{...BN("muted"),fontSize:10,padding:"3px 7px"},onClick:function(){setAdding(null);setNw("");}},"✕"))
+            )
+          :React.createElement("button",{style:{fontSize:10,color:C.sub,background:"none",border:"1px dashed "+C.border,borderRadius:5,cursor:"pointer",padding:"3px 0",width:"100%",marginTop:2},onClick:function(){setAdding(mo);setNw("");}},"+ Add")
       );
     })
   );
