@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#0d0d0d"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="format-detection" content="telephone=no"/>
 <title>Brittany's Media Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -10,7 +14,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 html,body{background:#0d0d0d;min-height:100vh;font-family:'Playfair Display',Georgia,serif;color:#e8e0d5;}
+body{padding-bottom:env(safe-area-inset-bottom,0px);}
 input,select,textarea{font-family:'Playfair Display',Georgia,serif;color:#e8e0d5;}
 input:focus,select:focus,textarea:focus{outline:2px solid #c8a84b;}
 select option{background:#1a1610;color:#e8e0d5;}
@@ -19,6 +25,11 @@ select option{background:#1a1610;color:#e8e0d5;}
 .mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:999;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;align-items:flex-start;justify-content:center;}
 .mi{background:#1a1610;border:1px solid #2e2416;border-radius:12px;padding:18px;width:100%;max-width:480px;margin:auto;}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.hdr-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+@media (max-width:520px){
+  .hdr-actions button{min-height:44px;padding-left:12px;padding-right:12px;}
+  .tabs button{min-height:40px;padding:8px 12px;}
+}
 </style>
 </head>
 <body>
@@ -104,6 +115,18 @@ function formatShortDate(d){
 }
 function movieVenueLabel(m){return(m.venue&&String(m.venue).trim())||(m.streaming&&String(m.streaming).trim())||"";}
 function isTheatreMovie(m){return(m.venue||"")==="Theatre";}
+function writeBmtFullBackup(o){
+  if(!o||typeof o!=="object"||o.v!==1)return false;
+  if(!Array.isArray(o.shows3)||!Array.isArray(o.movies3)||!Array.isArray(o.youtube3)||typeof o.week3!=="object"||!o.week3)return false;
+  ["bmt_shows3","bmt_movies3","bmt_youtube3","bmt_week3","bmt_friendlist3","bmt_coming2026"].forEach(function(k){localStorage.removeItem(k);});
+  localStorage.setItem("bmt_shows3",JSON.stringify(o.shows3));
+  localStorage.setItem("bmt_movies3",JSON.stringify(o.movies3));
+  localStorage.setItem("bmt_youtube3",JSON.stringify(o.youtube3));
+  localStorage.setItem("bmt_week3",JSON.stringify(o.week3));
+  localStorage.setItem("bmt_friendlist3",JSON.stringify(Array.isArray(o.friendlist3)?o.friendlist3:["Jill","Amber","Rae'Van","Lynn","Aunt","Other"]));
+  localStorage.setItem("bmt_coming2026",JSON.stringify(o.coming2026&&typeof o.coming2026==="object"?normalizeComing(o.coming2026):SEED_COMING_2026));
+  return true;
+}
 function statusColor(st){
   if(st==="Watched"||st==="Seen")return{bg:"#0f1a10",tx:C.green};
   if(st==="Watching")return{bg:"#0a1220",tx:"#7aaddd"};
@@ -114,8 +137,8 @@ function statusColor(st){
 
 // ──style helpers ──────────────────────────────────────────────────────────
 var SS={
-  app:{background:C.bg,minHeight:"100vh",color:C.light,paddingBottom:60,display:"flex",flexDirection:"column",alignItems:"center"},
-  hdr:{background:C.card,borderBottom:"1px solid "+C.border,padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"center",width:"100%",boxSizing:"border-box"},
+  app:{background:C.bg,minHeight:"100vh",color:C.light,paddingBottom:"calc(60px + env(safe-area-inset-bottom, 0px))",paddingLeft:"env(safe-area-inset-left, 0px)",paddingRight:"env(safe-area-inset-right, 0px)",display:"flex",flexDirection:"column",alignItems:"center"},
+  hdr:{background:C.card,borderBottom:"1px solid "+C.border,padding:"calc(14px + env(safe-area-inset-top, 0px)) 16px 14px",display:"flex",alignItems:"center",justifyContent:"center",width:"100%",boxSizing:"border-box"},
   tabs:{display:"flex",gap:3,padding:"8px 10px",background:C.card,borderBottom:"1px solid "+C.border,overflowX:"auto",width:"100%",boxSizing:"border-box",justifyContent:"center"},
   sec:{padding:"12px 14px",width:"100%",maxWidth:680,boxSizing:"border-box"},
   card:{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:"11px 13px",marginBottom:7},
@@ -231,6 +254,7 @@ function App(){
   var expTxtSt=useState(""); var exportText=expTxtSt[0]; var setExportText=expTxtSt[1];
   var expLoadSt=useState(false); var exportLoading=expLoadSt[0]; var setExportLoading=expLoadSt[1];
   var impModalSt=useState(false); var importModal=impModalSt[0]; var setImportModal=impModalSt[1];
+  var devSyncSt=useState(false); var deviceSyncModal=devSyncSt[0]; var setDeviceSyncModal=devSyncSt[1];
 
   useEffect(function(){
     setMovies(function(arr){return arr.map(function(m){
@@ -294,8 +318,10 @@ function App(){
     React.createElement("div",{style:SS.hdr},
       React.createElement("div",{style:{textAlign:"center"}},
         React.createElement("p",{style:{fontSize:20,fontWeight:700,color:C.light,margin:0}},"🎬 Brittany's Media Tracker"),
-        React.createElement("p",{style:{fontSize:11,color:C.sub,margin:"2px 0 8px",letterSpacing:1,textTransform:"uppercase"}},"Shows · Movies · YouTube"),
-        React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"center"}},
+        React.createElement("p",{style:{fontSize:11,color:C.sub,margin:"2px 0 4px",letterSpacing:1,textTransform:"uppercase"}},"Shows · Movies · YouTube"),
+        React.createElement("p",{style:{fontSize:10,color:C.muted,margin:"0 12px 8px",lineHeight:1.45,maxWidth:440,marginLeft:"auto",marginRight:"auto"}},"Saved on this device only. Tap 📲 Sync to copy your library to your phone or another computer."),
+        React.createElement("div",{className:"hdr-actions"},
+          React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"5px 10px"},onClick:function(){setDeviceSyncModal(true);}},"📲 Sync"),
           React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"5px 10px"},onClick:function(){setImportModal(true);}},"⬆ Import"),
           React.createElement("button",{style:{...BN("muted"),fontSize:11,padding:"5px 10px"},onClick:function(){setExportText("");setExportModal(true);}},"🎬 Export")
         )
@@ -334,7 +360,13 @@ function App(){
         )
       )
     ),
-    importModal&&React.createElement(ImportModal,{shows:shows,setShows:setShows,movies:movies,setMovies:setMovies,onClose:function(){setImportModal(false);}})
+    importModal&&React.createElement(ImportModal,{shows:shows,setShows:setShows,movies:movies,setMovies:setMovies,onClose:function(){setImportModal(false);}}),
+    deviceSyncModal&&React.createElement(DeviceSyncModal,{onClose:function(){setDeviceSyncModal(false);},buildBackup:function(){
+      var o={v:1,exportedAt:new Date().toISOString(),shows3:shows,movies3:movies,youtube3:youtube,week3:week,coming2026:coming2026};
+      var fr=localStorage.getItem("bmt_friendlist3");
+      try{o.friendlist3=fr?JSON.parse(fr):["Jill","Amber","Rae'Van","Lynn","Aunt","Other"];}catch(e2){o.friendlist3=["Jill","Amber","Rae'Van","Lynn","Aunt","Other"];}
+      return o;
+    }})
   );
 }
 
@@ -770,6 +802,45 @@ function FriendsTab(p){
         (item.synopsis||item.notes)&&React.createElement("p",{style:{fontSize:11,color:C.muted,margin:"3px 0 0",lineHeight:1.5}},item.synopsis||item.notes)
       );
     })
+  );
+}
+
+// ──Device sync (full backup) ──────────────────────────────────────────────
+function DeviceSyncModal(p){
+  var onClose=p.onClose,buildBackup=p.buildBackup;
+  var pasteSt=useState(""); var paste=pasteSt[0]; var setPaste=pasteSt[1];
+  var snap=JSON.stringify(buildBackup());
+  function copyAll(){
+    try{navigator.clipboard.writeText(snap);alert("Copied! On your other device, open the tracker → 📲 Sync → paste in the box → Restore.");}
+    catch(e){alert("Select all text in the backup box above, then Copy (works on every phone).");}
+  }
+  function doRestore(){
+    var t=paste.trim();
+    if(!t)return alert("Paste your backup JSON first.");
+    try{
+      var o=JSON.parse(t);
+      if(!o||typeof o!=="object"||o.v!==1)throw new Error();
+      if(!Array.isArray(o.shows3)||!Array.isArray(o.movies3)||!Array.isArray(o.youtube3)||typeof o.week3!=="object"||!o.week3)throw new Error();
+      if(!confirm("Replace ALL tracker data on this device with this backup?"))return;
+      if(!writeBmtFullBackup(o))throw new Error();
+      location.reload();
+    }catch(e){alert("That backup is not valid. Use “Copy full backup” on the device that has your latest library.");}
+  }
+  return React.createElement("div",{className:"mo",onClick:onClose},
+    React.createElement("div",{className:"mi",onClick:function(e){e.stopPropagation();},style:{maxWidth:500}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
+        React.createElement("span",{style:{fontSize:15,fontWeight:600,color:C.gold}},"📲 Sync devices"),
+        React.createElement("button",{style:{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:20},onClick:onClose},"✕")
+      ),
+      React.createElement("p",{style:{fontSize:12,color:C.muted,lineHeight:1.55,marginBottom:10}},"Each browser saves its own copy (phone ≠ computer). Copy your full library here, then paste and restore on the other device."),
+      React.createElement("label",{style:SS.lbl},"Current backup (select & copy if needed)"),
+      React.createElement("textarea",{readOnly:true,value:snap,onFocus:function(e){e.target.select();},style:{...SS.ta,minHeight:88,fontSize:10,marginBottom:8},spellCheck:false}),
+      React.createElement("button",{style:{...BN("green"),width:"100%",fontSize:13,marginBottom:14},onClick:copyAll},"Copy full backup"),
+      React.createElement("label",{style:SS.lbl},"Paste backup from another device"),
+      React.createElement("textarea",{style:{...SS.ta,minHeight:100,marginBottom:8},placeholder:'Paste JSON starting with {"v":1,...}',value:paste,onChange:function(e){setPaste(e.target.value);},spellCheck:false}),
+      React.createElement("button",{style:{...BN(),width:"100%",fontSize:13,marginBottom:8},onClick:doRestore},"Restore from backup"),
+      React.createElement("button",{style:{...BN("muted"),width:"100%",fontSize:12},onClick:onClose},"Close")
+    )
   );
 }
 
